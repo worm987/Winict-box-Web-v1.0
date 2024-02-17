@@ -1,106 +1,31 @@
 <?php
 $servername = "localhost";
 $username = "software";
-$password = "LkFhPnW5fLp4YCEA";
+$password = "xxxxxxx";
 $dbname = "software";
 
-// 设备
-function GetOs() {
-    if (!empty($_SERVER['HTTP_USER_AGENT'])) {
-        $OS = $_SERVER['HTTP_USER_AGENT'];
-        if (preg_match('/win/i', $OS)) {
-            $OS = 'Windows';
-        } elseif (preg_match('/mac/i', $OS)) {
-            $OS = 'MAC';
-        } elseif (preg_match('/linux/i', $OS)) {
-            $OS = 'Linux';
-        } elseif (preg_match('/unix/i', $OS)) {
-            $OS = 'Unix';
-        } elseif (preg_match('/bsd/i', $OS)) {
-            $OS = 'BSD';
-        } else {
-            $OS = 'Other';
-        }
-        return $OS;
-    } else {
-        return "获取访客操作系统信息失败！";
-    }}
-
-// 浏览器
-function GetBrowser() {
-    if (!empty($_SERVER['HTTP_USER_AGENT'])) {
-        $br = $_SERVER['HTTP_USER_AGENT'];
-        if (preg_match('/MSIE/i', $br)) {
-            $br = 'MSIE';
-        } elseif (preg_match('/Firefox/i', $br)) {
-            $br = 'Firefox';
-        } elseif (preg_match('/Chrome/i', $br)) {
-            $br = 'Chrome';
-        } elseif (preg_match('/Safari/i', $br)) {
-            $br = 'Safari';
-        } elseif (preg_match('/Opera/i', $br)) {
-            $br = 'Opera';
-        } else {
-            $br = 'Other';
-        }
-        return $br;
-    } else {
-        return "获取浏览器信息失败！";
-    }}
-
-// IP地址
-function getip() {
-    if (getenv("HTTP_CLIENT_IP") && strcasecmp(getenv("HTTP_CLIENT_IP") , "unknown")) {
-        $ip = getenv("HTTP_CLIENT_IP");
-    } else if (getenv("HTTP_X_FORWARDED_FOR") && strcasecmp(getenv("HTTP_X_FORWARDED_FOR") , "unknown")) {
-        $ip = getenv("HTTP_X_FORWARDED_FOR");
-    } else if (getenv("REMOTE_ADDR") && strcasecmp(getenv("REMOTE_ADDR") , "unknown")) {
-        $ip = getenv("REMOTE_ADDR");
-    } else if (isset($_SERVER['REMOTE_ADDR']) && $_SERVER['REMOTE_ADDR'] && strcasecmp($_SERVER['REMOTE_ADDR'], "unknown")) {
-        $ip = $_SERVER['REMOTE_ADDR'];
-    } else {
-        $ip = "unknown";
-    }
-    return $ip;}
-
-// 语言
-function GetLang() {
-    if (!empty($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
-        $lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'];
-        $lang = substr($lang, 0, 5);
-        if (preg_match("/zh-cn/i", $lang)) {
-            $lang = "简体中文";
-        } elseif (preg_match("/zh/i", $lang)) {
-            $lang = "繁体中文";
-        } else {
-            $lang = "English";
-        }
-        return $lang;
-    } else {
-        return "获取浏览器语言失败！";
-    }}
 
 
 try {
-    // 尝试连接数据库
+    // Try to connect to the database
     $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-    // 设置 PDO 错误模式为异常
+    // Set the PDO error mode to Exception
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // 连接成功后，获取 app_id 最大值和对应的 is_downloadable
+    // After the connection is successful, obtain the maximum value of app_id and the corresponding is_downloadable
     $query = "SELECT app_id, is_downloadable, download_count FROM app WHERE app_id = (SELECT MAX(app_id) FROM app)";
     $result = $conn->query($query);
     
     if ($result) {
-        // 获取结果集中的第一行数据
+        // Get the first row of data in the result set
         $row = $result->fetch(PDO::FETCH_ASSOC);
 
-        // 输出获取到的 app_id 和 is_downloadable
+        // Outputs the app_id and is_downloadable obtained
         $app_id = $row['app_id'];
         $is_downloadable = $row['is_downloadable'];
         $download_count = $row['download_count'];
 
-        // 获取访问者的IP地址
+        // Get the IP address of the visitor
         $visitor_ip = getip();
 
         $stmt = $conn->prepare("SELECT COUNT(*) FROM ip_blacklist WHERE ip_address = ?");
@@ -110,66 +35,23 @@ try {
         $count = $stmt->fetchColumn();
 
         if ($count > 0) {
-            http_response_code(403); // 返回403错误
+            http_response_code(403); // A 403 error is returned
             die("Forbidden: Your IP is blocked, please contact the webmaster.");
         }
     } else {
-        echo "查询失败";
+        echo "The query failed";
     }
 } catch (PDOException $e) {
-    // 连接数据库失败，输出错误信息
-    echo "连接失败: " . $e->getMessage();
+    // Failed to connect to the database and an error message is output
+    echo "Connection Failure: " . $e->getMessage();
 }
 
-// 目标URL
-$url = "http://opendata.baidu.com/api.php?query=".getip()."&co=&resource_id=6006&oe=utf8";
-
-// 创建一个新cURL资源
-$curl = curl_init();
-
-// 设置cURL选项
-curl_setopt($curl, CURLOPT_URL, $url);
-curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // 将curl_exec()返回的结果存入变量，而不是直接输出
-
-// 执行cURL请求并获取返回的数据
-$response = curl_exec($curl);
-
-// 检查是否有错误发生
-if(curl_errno($curl)){
-    echo 'cURL错误：' . curl_error($curl);
-    exit;
-}
-
-// 关闭cURL资源
-curl_close($curl);
-
-// 解析JSON
-$data = json_decode($response, true);
-
-// 检查解析结果并提取location字段
-if ($data !== null && isset($data['data'][0]['location'])) {
-    // 提取location字段
-    $location = $data['data'][0]['location'];
-} else {
-    // 解析失败或者location字段不存在
-    die("error\n");
-}
-
-echo "<!--
-网页获取信息（测试用的，不收集信息）：
-IP：".getip()."
-地址：$location
-设备：".GetOs()."
-浏览器（或内核）：".GetBrowser()."
-客户端语言：".GetLang()."
-黑名单IP：不是
--->\n";
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
     <head>
         <meta charset="UTF-8">
-        <title>一个软件</title>
+        <title>A piece of software</title>
         <link rel="stylesheet"
               href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
         <link rel="stylesheet"
@@ -182,7 +64,7 @@ IP：".getip()."
         <div class="window">
             <div class="title-bar">
                 <span class="title">
-                    <i class="fa fa-archive"></i> Winict Box
+                    <i class="fa fa-archive"></i> xxxxxxx
                     <span class="badge bg-success">1.0</span>
                 </span>
                 <div class="buttons">
@@ -208,40 +90,40 @@ IP：".getip()."
             <div class="window-text-h" style="overflow-y:auto">
                 <?php if (!isset($_GET['page'])): ?>
                 <div class="tab-content">
-                    <h1>欢迎使用Winict Box</h1>
-                    <p>Winict Box是一个强大的工具，提供各种功能，让您的工作更加高效。</p>
+                    <h1>Welcome to xxx</h1>
+                    <p>XXX is a powerful tool that offers a variety of features to make your work more efficient.</p>
 
                     <div class="btn">
                         <img src="http://app.woskzm.cn/Images/main.png"
-                             alt="Winict Box主程序"
+                             alt="xxx main program"
                              width="70%">
                     </div>
                     <br>
                     <div class="btn-group">
                         <button type="button"
                                 class="btn btn-primary"
-                                onclick="window.location.href='/?page=download'">最新版本</button>
+                                onclick="window.location.href='/?page=download'">The latest version</button>
                         <button type="button"
                                 class="btn btn-secondary"
-                                onclick="window.location.href='myprotocol://key'">打开</button>
+                                onclick="window.location.href='myprotocol://key'">Open it</button>
                         <button type="button"
                                 class="btn btn-primary"
-                                onclick="window.location.href='/?page=version'">版本列表</button>
+                                onclick="window.location.href='/?page=version'">List of versions</button>
                     </div>
                 </div>
                 <?php elseif ($_GET['page'] == 'download'): ?>
                 <div class="tab-content">
-                    <h1>下载</h1>
-                    <p>在这里选择下载最新版。
-                        <br>下载次数：
+                    <h1>Download</h1>
+                    <p>Choose here to download the latest version.
+                        <br>Downloads:
                         <?php echo $download_count; ?>
-                        <br>请选择下载方式：</p>
+                        <br>Please select a download method:</p>
                     <?php
-                    // 实验性->下载限制解除
+                    // Experimental - > download restrictions lifted
                     if ($_GET['experimental'] == 'true' && $_GET['rapidgator'] == 'false'){
                         echo "<button type=\"button\" class=\"btn btn-primary\" onclick=\"window.location.href='./download/?id=$app_id'\">本地下载</button>";
                     } else {
-                        // 下载限制
+                        // Download Limitations
                         if ($is_downloadable == '0') {
                             echo "<button type=\"button\" class=\"btn btn-primary\" disabled>禁止下载</button>";
                         } elseif ($is_downloadable == '1') {
@@ -361,12 +243,12 @@ IP：".getip()."
                     </thead>
                     <tbody>
                         <?php
-                        // 执行 SQL 查询
+                        // Execute SQL queries
                         $stmt = $conn->prepare("SELECT * FROM gratitudelist");
-                        // 执行查询
+                        // Execute the query
                         $stmt->execute();
 
-                        // 输出表格
+                        // Output table
                         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                             echo "<tr>";
                             echo "<td>" . $row['PersonName'] . "</td>";
@@ -378,23 +260,23 @@ IP：".getip()."
                         ?>
                     </tbody>
                 </table>
-                <p>页面信息</p>
+                <p>Page Information</p>
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>页面名称</th>
-                            <th>作者</th>
+                            <th>The name of the page</th>
+                            <th>author</th>
                             <th>QQ</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
-                        // 执行 SQL 查询
+                        // Execute SQL queries
                         $stmt = $conn->prepare("SELECT * FROM about");
-                        // 执行查询
+                        // Execute the query
                         $stmt->execute();
 
-                        // 输出表格
+                        // Output table
                         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                             $tx = "<img src=\"https://q.qlogo.cn/g?b=qq&nk=" . $row['qq'] . "&s=100\" alt=\"Circular Image\" width=\"5%\"> ";
                             echo "<tr>";
@@ -409,19 +291,19 @@ IP：".getip()."
             </div>
             <?php elseif ($_GET['page'] == 'donation'): ?>
                 <div class="tab-content">
-                    <h1>捐赠</h1>
-                    <p>我们暂时不接受捐助，但是你可以给我们点一个赞。</p>
+                    <h1>donation</h1>
+                    <p>We don't accept donations at the moment, but you can give us a thumbs up.</p>
                     <button type="button" class="btn" onclick="window.location.href='./likes/'">👍</button>
 <?php
-// 修改查询语句，选择所有列
+// Modify the query statement and select all columns
 $stmt = $conn->prepare("SELECT * FROM likes");
 
-// 重新执行查询
+// Re-execute the query
 $stmt->execute();
 
-// 输出表格
+// Output table
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    echo "<p>已获得 " . $row['likes_count'] . " 个赞</p>";
+    echo "<p>" . $row['likes_count'] . " likes</p>";
 }
 ?>
                 </div>
