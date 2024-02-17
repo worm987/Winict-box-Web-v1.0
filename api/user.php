@@ -5,39 +5,39 @@ $dbname = 'software';
 $user = 'software';
 $password = 'xxxxx';
 
-// 创建PDO实例连接数据库
+// Create a PDO instance to connect to the database
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname", $user, $password);
-    // 设置错误模式为异常
+    // Set the error mode to Exception
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
-    die("数据库连接失败: " . $e->getMessage());
+    die("Database connection failure: " . $e->getMessage());
 }
 
-// 检查是否有POST请求和token
+// Check whether there is a POST request and a token
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['token'])) {
     $token = $_POST['token'];
 
-    // 准备SQL语句查询token
+    // Prepare an SQL statement to query tokens
     $stmt = $pdo->prepare("SELECT user_id, token FROM tokens WHERE token = :token LIMIT 1");
     $stmt->execute([':token' => $token]);
 
-    // 判断是否找到token
+    // Determine whether the token is found
     if ($stmt->rowCount() > 0) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $user_id = $row['user_id'];
 
-        // 使用找到的user_id和token获取cmd表中的信息
+        // Use the found user_id and tokens to get the information in the cmd table
         $stmt = $pdo->prepare("SELECT * FROM cmd WHERE user_id = :user_id AND token = :token");
         $stmt->execute([':user_id' => $user_id, ':token' => $token]);
 
         if ($stmt->rowCount() > 0) {
-            // 获取数据，拼接JSON消息
+            // Obtain data and splice JSON messages
             $cmds_json = $stmt->fetchAll(PDO::FETCH_ASSOC);
             $cmds = json_decode($cmds_json, true);
-            // 判断
+            // judgment
             if ($cmds['command'] == "None") {
-                // 无cmd信息
+                // No CMD information
                 $response = [
                     'error' => false,
                     'cmd' => false,
@@ -50,44 +50,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['token'])) {
                     'error' => false,
                     'cmd' => true,
                     'msg' => '',
-                    'cmds' => $cmds_json, // 从数据库获取的cmd表信息
+                    'cmds' => $cmds_json, // The CMD table information obtained from the database
                     'token' => $token
                 ];
 
-                // 更新cmd表中的command字段为空
+                // Update that the command field in the cmd table is empty
                 $updateStmt = $pdo->prepare("UPDATE cmd SET command = '' WHERE user_id = :user_id AND token = :token");
                 $updateStmt->execute([':user_id' => $user_id, ':token' => $token]);
             }
 
             echo json_encode($response);
         } else {
-            // 没有找到cmd表信息的情况
+            // No information was found for the cmd table
             $response = [
                 'error' => true,
                 'cmd' => false,
-                'msg' => '数据库异常！',
+                'msg' => 'Database exception!',
                 'token' => $token
             ];
 
             echo json_encode($response);
         }
     } else {
-        // 没有找到token的情况
+        // No token found
         $response = [
             'error' => true,
             'cmd' => false,
-            'msg' => '令牌无效或失效！',
+            'msg' => 'The token is invalid or invalid!',
             'token' => $token
         ];
 
         echo json_encode($response);
     }
 } else {
-    // 没有POST请求或没有提供token的情况
+    // When there is no POST request or no token provided
     $response = [
         'error' => true,
         'cmd' => false,
-        'msg' => '缺少令牌',
+        'msg' => 'Missing tokens',
         'token' => ''
     ];
 
