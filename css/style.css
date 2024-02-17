@@ -13,7 +13,7 @@
   transform: translate(-50%, -50%);
   border: 1px solid #ccc;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  overflow: hidden; /* 添加overflow属性，防止内容溢出窗口 */
+  overflow: hidden; /* Added overflow attribute to prevent content from overflowing the window */
 }
 .title-bar {
   background-color: #007bff;
@@ -62,7 +62,7 @@
   flex: 1;
   background-color: #f0f0f0;
   margin: auto;
-  overflow: auto; /* 添加overflow属性，允许内容超出框时显示滚动条 */
+  overflow: auto; /* Added overflow attribute to allow scroll bars to be displayed when content is out of the box */
 }
 
 .rectangle textarea {
